@@ -1,3 +1,4 @@
+<script src="https://www.paypalobjects.com/api/checkout.js"></script>
 <?php 
 $total = 0;
     $qry = $conn->query("SELECT c.*,p.name,i.price,p.id as pid from `cart` c inner join `inventory` i on i.id=c.inventory_id inner join products p on p.id = i.product_id where c.client_id = ".$_settings->userdata('id'));
@@ -9,7 +10,7 @@ $total = 0;
     <div class="container">
         <div class="card rounded-0">
             <div class="card-body"></div>
-            <h3 class="text-center"><b>Proceso de Pago</b></h3>
+            <h3 class="text-center"><b>Pagar</b></h3>
             <hr class="border-dark">
             <form action="" id="place_order">
                 <input type="hidden" name="amount" value="<?php echo $total ?>">
@@ -28,53 +29,8 @@ $total = 0;
                         <div class="col my-3">
                         <h4 class="text-muted">Método de Pago</h4>
                             <div class="d-flex w-100 justify-content-between">
-                                <button class="btn btn-flat btn-dark">Pago contra entrega</button>
-                                <div id="smart-button-container">
-      <div style="text-align: center;">
-        <div id="paypal-button-container"></div>
-      </div>
-    </div>
-  <script src="https://www.paypal.com/sdk/js?client-id=AfN_s3KIqrU31pZ1Px3ZWDLI_DURArq90GoqTlTjtZ3Yi0cBkjGBFVGm9chOpavJd11khbuuM3UsBSyJ&enable-funding=venmo&currency=USD" data-sdk-integration-source="button-factory"></script>
-  <script>
-    function initPayPalButton() {
-      paypal.Buttons({
-        style: {
-          shape: 'pill',
-          color: 'gold',
-          layout: 'horizontal',
-          label: 'pay',
-          
-        },
-
-        createOrder: function(data, actions) {
-          return actions.order.create({
-            purchase_units: [{"amount":{"currency_code":"USD","value":0}}]
-          });
-        },
-
-        onApprove: function(data, actions) {
-          return actions.order.capture().then(function(orderData) {
-            
-            // Full available details
-            console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
-
-            // Show a success message within this page, e.g.
-            const element = document.getElementById('paypal-button-container');
-            element.innerHTML = '';
-            element.innerHTML = '<h3>Thank you for your payment!</h3>';
-
-            // Or go to another URL:  actions.redirect('thank_you.html');
-            
-          });
-        },
-
-        onError: function(err) {
-          console.log(err);
-        }
-      }).render('#paypal-button-container');
-    }
-    initPayPalButton();
-  </script>
+                                <button class="btn btn-flat btn-dark">Pago Contra Entrega</button>
+                                <span id="paypal-button"></span>
                             </div>
                         </div>
                     </div>
@@ -83,3 +39,84 @@ $total = 0;
         </div>
     </div>
 </section>
+<script>
+paypal.Button.render({
+    env: 'production', // change for sandbox if app is demo,
+ 
+        //app's client id's
+	client: {
+        //sandbox:    'AjdXI4.76uyOqdJPVYvNUQ3Q2rNmAJIkQfVqSUqw9-gm3bU7RX83hvB8',
+        production: 'ATxoXzFHQ-_zB1IPcq1ixEJuTWL7tz5vpBfEsypyzTb4U6L9UjBCcGdzla7qYJR5Al5WjBsdqkAoYG9b'
+    },
+ 
+    commit: true, // Show a 'Pay Now' button
+ 
+    style: {
+    	color: 'blue',
+    	size: 'small'
+    },
+ 
+    payment: function(data, actions) {
+        return actions.payment.create({
+            payment: {
+                transactions: [
+                    {
+                    	//total purchase
+                        amount: { 
+                        	total: '<?php echo $total; ?>', 
+                        	currency: 'USD' 
+                        }
+                    }
+                ]
+            }
+        });
+    },
+ 
+    onAuthorize: function(data, actions) {
+        return actions.payment.execute().then(function(payment) {
+    		// //sweetalert for successful transaction
+    		// swal('Thank you!', 'Paypal purchase successful.', 'success');
+            payment_online()
+        });
+    },
+ 
+}, '#paypal-button');
+function payment_online(){
+    $('[name="payment_method"]').val("Online Payment")
+    $('[name="paid"]').val(1)
+    $('#place_order').submit()
+}
+$(function(){
+    $('[name="order_type"]').change(function(){
+        if($(this).val() ==2){
+            $('.address-holder').hide('slow')
+        }else{
+            $('.address-holder').show('slow')
+        }
+    })
+    $('#place_order').submit(function(e){
+        e.preventDefault()
+        start_loader();
+        $.ajax({
+            url:'classes/Master.php?f=place_order',
+            method:'POST',
+            data:$(this).serialize(),
+            dataType:"json",
+            error:err=>{
+                console.log(err)
+                alert_toast("an error occured","error")
+                end_loader();
+            },
+            success:function(resp){
+                if(!!resp.status && resp.status == 'success'){
+                    location.replace('./')
+                }else{
+                    console.log(resp)
+                    alert_toast("an error occured","error")
+                    end_loader();
+                }
+            }
+        })
+    })
+})
+</script>
